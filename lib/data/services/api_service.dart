@@ -321,9 +321,24 @@ class ApiService {
     return get(ApiConstants.adminStatServerLastRank, isAdmin: true);
   }
 
+  /// 获取服务器排行 (今日)
+  Future<ApiResponse> getServerTodayRank() async {
+    return get(ApiConstants.adminStatServerTodayRank, isAdmin: true);
+  }
+
   /// 获取用户排行 (今日)
   Future<ApiResponse> getUserTodayRank() async {
     return get(ApiConstants.adminStatUserTodayRank, isAdmin: true);
+  }
+
+  /// 获取用户排行 (昨日)
+  Future<ApiResponse> getUserLastRank() async {
+    return get(ApiConstants.adminStatUserLastRank, isAdmin: true);
+  }
+
+  /// 获取用户统计
+  Future<ApiResponse> getStatUser() async {
+    return get(ApiConstants.adminStatUser, isAdmin: true);
   }
 
   // ============ 用户管理 API ============

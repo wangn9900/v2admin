@@ -195,6 +195,11 @@ class _UsersPageState extends State<UsersPage> {
   // ... (Header, Filter, Views, Actions) Implementation ...
 
   Widget _buildHeader(bool isDark) {
+    final activeUsers = _plans.fold<int>(
+      0,
+      (sum, plan) => sum + (plan['count'] as int? ?? 0),
+    );
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -212,14 +217,39 @@ class _UsersPageState extends State<UsersPage> {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              '共 $_totalUsers 个用户',
-              style: TextStyle(
-                fontSize: 14,
-                color: isDark
-                    ? AppColors.textSecondaryDark
-                    : AppColors.textSecondaryLight,
-              ),
+            Row(
+              children: [
+                Text(
+                  '共 $_totalUsers 个用户',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
+                  ),
+                ),
+                if (activeUsers > 0) ...[
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '有效用户: $activeUsers',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ],
         ),

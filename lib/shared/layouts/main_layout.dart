@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_colors.dart';
 
+import '../../core/providers/navigation_provider.dart';
 import '../../features/auth/auth_provider.dart';
+
 import '../../features/dashboard/dashboard_page.dart';
 import '../../features/users/users_page.dart';
 import '../../features/orders/orders_page.dart';
@@ -29,9 +31,7 @@ class MainLayout extends StatefulWidget {
 }
 
 class _MainLayoutState extends State<MainLayout> {
-  int _currentIndex = 0;
-
-  // 导航分组
+  // 导航分组...
   final List<_NavGroup> _navGroups = [
     _NavGroup(
       title: null, // 无标题的主导航
@@ -163,15 +163,19 @@ class _MainLayoutState extends State<MainLayout> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final isDesktop = size.width >= 800;
+    // 获取当前导航索引
+    final currentIndex = context.watch<NavigationProvider>().currentIndex;
 
     return Scaffold(
-      body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
-      bottomNavigationBar: isDesktop ? null : _buildBottomNav(),
+      body: isDesktop
+          ? _buildDesktopLayout(currentIndex)
+          : _buildMobileLayout(currentIndex),
+      bottomNavigationBar: isDesktop ? null : _buildBottomNav(currentIndex),
     );
   }
 
   /// 桌面端布局 - 侧边导航栏
-  Widget _buildDesktopLayout() {
+  Widget _buildDesktopLayout(int currentIndex) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final size = MediaQuery.of(context).size;
     final isExpanded = size.width >= 1100;
@@ -239,7 +243,7 @@ class _MainLayoutState extends State<MainLayout> {
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: _buildNavGroups(isExpanded),
+                    children: _buildNavGroups(isExpanded, currentIndex),
                   ),
                 ),
               ),
@@ -251,13 +255,13 @@ class _MainLayoutState extends State<MainLayout> {
         ),
 
         // 主内容区
-        Expanded(child: _allNavItems[_currentIndex].page),
+        Expanded(child: _allNavItems[currentIndex].page),
       ],
     );
   }
 
   /// 构建导航分组
-  List<Widget> _buildNavGroups(bool isExpanded) {
+  List<Widget> _buildNavGroups(bool isExpanded, int currentIndex) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final widgets = <Widget>[];
     int globalIndex = 0;
@@ -301,9 +305,9 @@ class _MainLayoutState extends State<MainLayout> {
         widgets.add(
           _buildNavItem(
             item: item,
-            isSelected: _currentIndex == index,
+            isSelected: currentIndex == index,
             isExpanded: isExpanded,
-            onTap: () => setState(() => _currentIndex = index),
+            onTap: () => context.read<NavigationProvider>().jumpTo(index),
           ),
         );
         globalIndex++;
@@ -314,8 +318,8 @@ class _MainLayoutState extends State<MainLayout> {
   }
 
   /// 移动端布局
-  Widget _buildMobileLayout() {
-    return _allNavItems[_currentIndex].page;
+  Widget _buildMobileLayout(int currentIndex) {
+    return _allNavItems[currentIndex].page;
   }
 
   /// 导航项
@@ -501,27 +505,14 @@ class _MainLayoutState extends State<MainLayout> {
   }
 
   /// 底部导航栏 (移动端 - 只显示主要功能)
-  Widget _buildBottomNav() {
+  Widget _buildBottomNav(int currentIndex) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // 移动端只显示5个主要功能
     final mobileItems = [
       (0, LucideIcons.layoutDashboard, '仪表盘'),
       (1, LucideIcons.users, '用户'),
-      (
-        5,
-        LucideIcons.shoppingCart,
-        '订单',
-      ), // Index shifted: 0, 1,2, 3, 4,5,6 (Finance ends).
-      // Nav structure:
-      // 0: Dashboard
-      // 1: User, 2: Notice
-      // 3: Server
-      // 4: Plans, 5: Orders, 6: Coupons
-      // 7: GiftCards, 8: Knowledge
-      // 9: Tickets
-      // 10: Queue
-      // 11... Settings
+      (5, LucideIcons.shoppingCart, '订单'),
       (9, LucideIcons.messageSquare, '工单'),
       (11, LucideIcons.settings, '设置'),
     ];
@@ -542,13 +533,14 @@ class _MainLayoutState extends State<MainLayout> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: mobileItems.map((item) {
-              final isSelected = _currentIndex == item.$1;
+              final isSelected = currentIndex == item.$1;
 
               return Expanded(
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: () => setState(() => _currentIndex = item.$1),
+                    onTap: () =>
+                        context.read<NavigationProvider>().jumpTo(item.$1),
                     borderRadius: BorderRadius.circular(12),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),

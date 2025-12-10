@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/providers/navigation_provider.dart';
 import '../../data/models/stat_model.dart';
 import '../../data/services/api_service.dart';
 import '../../shared/widgets/common_widgets.dart';
@@ -16,8 +18,10 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   StatOverview? _statOverview;
-  List<ServerRank> _serverRanks = [];
-  List<UserRank> _userRanks = [];
+  List<ServerRank> _serverLastRanks = [];
+  List<ServerRank> _serverTodayRanks = [];
+  List<UserRank> _userLastRanks = [];
+  List<UserRank> _userTodayRanks = [];
   List<Map<String, dynamic>> _revenueData = []; // 收入趋势数据
   bool _isLoading = true;
   String? _error;
@@ -41,7 +45,9 @@ class _DashboardPageState extends State<DashboardPage> {
       final results = await Future.wait([
         api.getStatOverride(),
         api.getServerLastRank(),
+        api.getServerTodayRank(),
         api.getUserTodayRank(),
+        api.getUserLastRank(),
         api.getStatOrder(), // 获取收入趋势数据
       ]);
 
@@ -52,25 +58,43 @@ class _DashboardPageState extends State<DashboardPage> {
             _statOverview = StatOverview.fromJson(results[0].data);
           }
 
-          // 服务器排行
+          // 服务器排行 (昨日)
           if (results[1].success) {
             final data = results[1].getData<List>();
             if (data != null) {
-              _serverRanks = data.map((e) => ServerRank.fromJson(e)).toList();
+              _serverLastRanks = data
+                  .map((e) => ServerRank.fromJson(e))
+                  .toList();
             }
           }
-
-          // 用户排行
+          // 服务器排行 (今日)
           if (results[2].success) {
             final data = results[2].getData<List>();
             if (data != null) {
-              _userRanks = data.map((e) => UserRank.fromJson(e)).toList();
+              _serverTodayRanks = data
+                  .map((e) => ServerRank.fromJson(e))
+                  .toList();
+            }
+          }
+
+          // 用户排行 (今日)
+          if (results[3].success) {
+            final data = results[3].getData<List>();
+            if (data != null) {
+              _userTodayRanks = data.map((e) => UserRank.fromJson(e)).toList();
+            }
+          }
+          // 用户排行 (昨日)
+          if (results[4].success) {
+            final data = results[4].getData<List>();
+            if (data != null) {
+              _userLastRanks = data.map((e) => UserRank.fromJson(e)).toList();
             }
           }
 
           // 收入趋势数据
-          if (results[3].success) {
-            final data = results[3].getData<List>();
+          if (results[5].success) {
+            final data = results[5].getData<List>();
             if (data != null) {
               _revenueData = data.cast<Map<String, dynamic>>();
             }
@@ -133,14 +157,61 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            '欢迎回来，这是您的系统概览',
-            style: TextStyle(
-              fontSize: 14,
-              color: isDark
-                  ? AppColors.textSecondaryDark
-                  : AppColors.textSecondaryLight,
-            ),
+          Row(
+            children: [
+              Text(
+                '欢迎回来，这是您的系统概览',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight,
+                ),
+              ),
+              if ((_statOverview?.ticketPendingTotal ?? 0) > 0) ...[
+                const SizedBox(width: 12),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      context.read<NavigationProvider>().jumpTo(
+                        NavigationProvider.tickets,
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(4),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            LucideIcons.alertCircle,
+                            size: 12,
+                            color: AppColors.error,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${_statOverview?.ticketPendingTotal} 个待处理工单',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.error,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
           const SizedBox(height: 24),
 
@@ -155,21 +226,64 @@ class _DashboardPageState extends State<DashboardPage> {
           // 排行榜区域
           LayoutBuilder(
             builder: (context, constraints) {
-              if (constraints.maxWidth > 800) {
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              if (constraints.maxWidth > 900) {
+                // 2x2 Grid
+                return Column(
                   children: [
-                    Expanded(child: _buildServerRankCard()),
-                    const SizedBox(width: 20),
-                    Expanded(child: _buildUserRankCard()),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _buildServerRankCard(
+                            '今日节点流量排行',
+                            _serverTodayRanks,
+                            '今日',
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: _buildServerRankCard(
+                            '昨日节点流量排行',
+                            _serverLastRanks,
+                            '昨日',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _buildUserRankCard(
+                            '今日用户流量排行',
+                            _userTodayRanks,
+                            '今日',
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: _buildUserRankCard(
+                            '昨日用户流量排行',
+                            _userLastRanks,
+                            '昨日',
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 );
               } else {
+                // Single Column
                 return Column(
                   children: [
-                    _buildServerRankCard(),
+                    _buildServerRankCard('今日节点流量排行', _serverTodayRanks, '今日'),
                     const SizedBox(height: 20),
-                    _buildUserRankCard(),
+                    _buildServerRankCard('昨日节点流量排行', _serverLastRanks, '昨日'),
+                    const SizedBox(height: 20),
+                    _buildUserRankCard('今日用户流量排行', _userTodayRanks, '今日'),
+                    const SizedBox(height: 20),
+                    _buildUserRankCard('昨日用户流量排行', _userLastRanks, '昨日'),
                   ],
                 );
               }
@@ -180,63 +294,201 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  /// 统计卡片网格
+  /// 统计区域
   Widget _buildStatCards() {
     final stats = _statOverview ?? StatOverview();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        int crossAxisCount;
-        if (constraints.maxWidth > 1200) {
-          crossAxisCount = 4;
-        } else if (constraints.maxWidth > 800) {
-          crossAxisCount = 3;
-        } else if (constraints.maxWidth > 500) {
-          crossAxisCount = 2;
-        } else {
-          crossAxisCount = 2;
-        }
+    return GlassCard(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          // 第一行：主要数据
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _buildMajorStat(
+                  title: '在线人数',
+                  value: stats.onlineUser.toString(),
+                  icon: LucideIcons.users,
+                  valueColor: isDark ? Colors.white : Colors.black,
+                ),
+              ),
+              Expanded(
+                child: _buildMajorStat(
+                  title: '今日收入',
+                  value: stats.formattedDayIncome,
+                  suffix: 'CNY',
+                  icon: LucideIcons.barChart2,
+                  valueColor: isDark ? Colors.white : Colors.black,
+                ),
+              ),
+              Expanded(
+                child: _buildMajorStat(
+                  title: '今日注册',
+                  value: stats.dayRegisterTotal.toString(),
+                  icon: LucideIcons.userPlus,
+                  valueColor: isDark ? Colors.white : Colors.black,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Divider(
+            height: 1,
+            color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+          ),
+          const SizedBox(height: 24),
+          // 第二行：次要数据
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _buildMinorStat(
+                  title: '本月收入',
+                  value: '${stats.formattedMonthIncome} CNY',
+                ),
+              ),
+              Expanded(
+                child: _buildMinorStat(
+                  title: '上月收入',
+                  value: '${stats.formattedLastMonthIncome} CNY',
+                ),
+              ),
+              Expanded(
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      context.read<NavigationProvider>().jumpTo(
+                        NavigationProvider.tickets,
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: _buildMinorStat(
+                        title: '待处理工单',
+                        value: stats.ticketPendingTotal.toString(),
+                        valueColor: stats.ticketPendingTotal > 0
+                            ? AppColors.warning
+                            : null,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: _buildMinorStat(
+                  title: '本月新增用户',
+                  value: stats.monthRegisterTotal.toString(),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
-        return GridView.count(
-          crossAxisCount: crossAxisCount,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          childAspectRatio: 1.3,
+  Widget _buildMajorStat({
+    required String title,
+    required String value,
+    String? suffix,
+    required IconData icon,
+    Color? valueColor,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            StatCard(
-              title: '在线用户',
-              value: stats.onlineUser.toString(),
-              subtitle: '本月新增 ${stats.monthRegisterTotal}',
-              icon: LucideIcons.users,
-              iconColor: AppColors.primary,
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
+              ),
             ),
-            StatCard(
-              title: '今日收入',
-              value: '¥${stats.formattedDayIncome}',
-              subtitle: '今日注册 ${stats.dayRegisterTotal}',
-              icon: LucideIcons.dollarSign,
-              iconColor: AppColors.success,
-            ),
-            StatCard(
-              title: '本月收入',
-              value: '¥${stats.formattedMonthIncome}',
-              subtitle: '上月 ¥${stats.formattedLastMonthIncome}',
-              icon: LucideIcons.trendingUp,
-              iconColor: AppColors.accent,
-            ),
-            StatCard(
-              title: '待处理工单',
-              value: stats.ticketPendingTotal.toString(),
-              icon: LucideIcons.messageSquare,
-              iconColor: stats.ticketPendingTotal > 0
-                  ? AppColors.warning
-                  : AppColors.textMutedDark,
+            const SizedBox(width: 8),
+            Icon(
+              icon,
+              size: 16,
+              color: isDark
+                  ? AppColors.textMutedDark
+                  : AppColors.textMutedLight,
             ),
           ],
-        );
-      },
+        ),
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.w300,
+                color: valueColor,
+                height: 1.0,
+              ),
+            ),
+            if (suffix != null) ...[
+              const SizedBox(width: 4),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  suffix,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark
+                        ? AppColors.textMutedDark
+                        : AppColors.textMutedLight,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMinorStat({
+    required String title,
+    required String value,
+    Color? valueColor,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color:
+                valueColor ??
+                (isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 12,
+            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+          ),
+        ),
+      ],
     );
   }
 
@@ -445,8 +697,9 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   /// 服务器排行卡片
-  Widget _buildServerRankCard() {
+  Widget _buildServerRankCard(String title, List<ServerRank> data, String tag) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final totalTraffic = data.fold(0.0, (sum, item) => sum + item.total);
 
     return GlassCard(
       padding: const EdgeInsets.all(20),
@@ -457,42 +710,61 @@ class _DashboardPageState extends State<DashboardPage> {
             children: [
               Icon(LucideIcons.server, color: AppColors.accent, size: 20),
               const SizedBox(width: 8),
-              Text(
-                '服务器流量排行',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: isDark
-                      ? AppColors.textPrimaryDark
-                      : AppColors.textPrimaryLight,
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
-              const Spacer(),
-              Text(
-                '昨日',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark
-                      ? AppColors.textMutedDark
-                      : AppColors.textMutedLight,
-                ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${totalTraffic.toStringAsFixed(2)} GB',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Monospace',
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
+                    ),
+                  ),
+                  Text(
+                    tag,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: isDark
+                          ? AppColors.textMutedDark
+                          : AppColors.textMutedLight,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
           const SizedBox(height: 16),
-          if (_serverRanks.isEmpty)
+          if (data.isEmpty)
             const Padding(
               padding: EdgeInsets.all(20),
               child: Center(child: Text('暂无数据')),
             )
           else
             ...List.generate(
-              _serverRanks.take(5).length,
+              data.take(5).length,
               (index) => _buildRankItem(
                 rank: index + 1,
-                title: _serverRanks[index].serverName,
-                subtitle: _serverRanks[index].typeName,
-                value: _serverRanks[index].formattedTotal,
+                title: data[index].serverName,
+                subtitle: data[index].typeName,
+                value: data[index].formattedTotal,
               ),
             ),
         ],
@@ -501,7 +773,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   /// 用户排行卡片
-  Widget _buildUserRankCard() {
+  Widget _buildUserRankCard(String title, List<UserRank> data, String tag) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GlassCard(
@@ -514,7 +786,7 @@ class _DashboardPageState extends State<DashboardPage> {
               Icon(LucideIcons.users, color: AppColors.primary, size: 20),
               const SizedBox(width: 8),
               Text(
-                '用户流量排行',
+                title,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -525,7 +797,7 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
               const Spacer(),
               Text(
-                '今日',
+                tag,
                 style: TextStyle(
                   fontSize: 12,
                   color: isDark
@@ -536,19 +808,19 @@ class _DashboardPageState extends State<DashboardPage> {
             ],
           ),
           const SizedBox(height: 16),
-          if (_userRanks.isEmpty)
+          if (data.isEmpty)
             const Padding(
               padding: EdgeInsets.all(20),
               child: Center(child: Text('暂无数据')),
             )
           else
             ...List.generate(
-              _userRanks.take(5).length,
+              data.take(5).length,
               (index) => _buildRankItem(
                 rank: index + 1,
-                title: _userRanks[index].maskedEmail,
-                subtitle: 'ID: ${_userRanks[index].userId}',
-                value: _userRanks[index].formattedTotal,
+                title: data[index].maskedEmail,
+                subtitle: 'ID: ${data[index].userId}',
+                value: data[index].formattedTotal,
               ),
             ),
         ],

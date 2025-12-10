@@ -175,19 +175,20 @@ class StatCard extends StatelessWidget {
 
     return GlassCard(
       onTap: onTap,
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   color: actualIconBgColor,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: actualIconColor, size: 22),
+                child: Icon(icon, color: actualIconColor, size: 20),
               ),
               const Spacer(),
               if (onTap != null)
@@ -200,11 +201,11 @@ class StatCard extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           if (isLoading)
             Container(
               width: 80,
-              height: 28,
+              height: 24,
               decoration: BoxDecoration(
                 color: isDark
                     ? AppColors.surfaceVariantDark
@@ -216,33 +217,37 @@ class StatCard extends StatelessWidget {
             Text(
               value,
               style: TextStyle(
-                fontSize: 28,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: isDark
                     ? AppColors.textPrimaryDark
                     : AppColors.textPrimaryLight,
               ),
             ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             title,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 13,
               color: isDark
                   ? AppColors.textSecondaryDark
                   : AppColors.textSecondaryLight,
+              overflow: TextOverflow.ellipsis,
             ),
+            maxLines: 1,
           ),
           if (subtitle != null) ...[
             const SizedBox(height: 2),
             Text(
               subtitle!,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 color: isDark
                     ? AppColors.textMutedDark
                     : AppColors.textMutedLight,
+                overflow: TextOverflow.ellipsis,
               ),
+              maxLines: 1,
             ),
           ],
         ],
