@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  FLUTTER_VERSION: '3.24.0'
+  FLUTTER_VERSION: '3.29.0'
 
 jobs:
   # ==================== Windows ====================
@@ -135,29 +135,31 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
       
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+      
+      - name: Create key.properties
+        run: |
+          cat > android/key.properties << EOF
+          storePassword=${{ secrets.STORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=release.keystore
+          EOF
+      
       - name: Build APK
         run: flutter build apk --release
-      
-      - name: Build App Bundle
-        run: flutter build appbundle --release
       
       - name: Rename outputs
         run: |
           mv build/app/outputs/flutter-apk/app-release.apk build/v2board-admin.apk
-          mv build/app/outputs/bundle/release/app-release.aab build/v2board-admin.aab
       
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
           path: build/v2board-admin.apk
-          retention-days: 30
-      
-      - name: Upload Android AAB
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-aab
-          path: build/v2board-admin.aab
           retention-days: 30
 
   # ==================== iOS (Unsigned) ====================
@@ -216,7 +218,6 @@ jobs:
             artifacts/macos-release/v2board-admin-macos.dmg
             artifacts/linux-release/v2board-admin-linux.tar.gz
             artifacts/android-apk/v2board-admin.apk
-            artifacts/android-aab/v2board-admin.aab
             artifacts/ios-unsigned/v2board-admin-ios-unsigned.ipa
           draft: false
           prerelease: false
