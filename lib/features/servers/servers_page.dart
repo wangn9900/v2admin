@@ -175,47 +175,58 @@ class _ServersPageState extends State<ServersPage> {
           children: [
             Row(
               children: [
+                // 节点ID徽章（更明显的显示）
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.primary.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '$id',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // 节点类型图标
+                Container(
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: _getTypeColor(type).withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
                     _getTypeIcon(type),
                     color: _getTypeColor(type),
-                    size: 22,
+                    size: 20,
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Text(
-                            '#$id',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              name,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: isDark
-                                    ? AppColors.textPrimaryDark
-                                    : AppColors.textPrimaryLight,
-                              ),
-                            ),
-                          ),
-                        ],
+                      Text(
+                        name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                          color: isDark
+                              ? AppColors.textPrimaryDark
+                              : AppColors.textPrimaryLight,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(

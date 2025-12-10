@@ -18,6 +18,7 @@ class _DashboardPageState extends State<DashboardPage> {
   StatOverview? _statOverview;
   List<ServerRank> _serverRanks = [];
   List<UserRank> _userRanks = [];
+  List<Map<String, dynamic>> _revenueData = []; // 收入趋势数据
   bool _isLoading = true;
   String? _error;
 
@@ -41,6 +42,7 @@ class _DashboardPageState extends State<DashboardPage> {
         api.getStatOverride(),
         api.getServerLastRank(),
         api.getUserTodayRank(),
+        api.getStatOrder(), // 获取收入趋势数据
       ]);
 
       if (mounted) {
@@ -63,6 +65,14 @@ class _DashboardPageState extends State<DashboardPage> {
             final data = results[2].getData<List>();
             if (data != null) {
               _userRanks = data.map((e) => UserRank.fromJson(e)).toList();
+            }
+          }
+
+          // 收入趋势数据
+          if (results[3].success) {
+            final data = results[3].getData<List>();
+            if (data != null) {
+              _revenueData = data.cast<Map<String, dynamic>>();
             }
           }
 
@@ -234,6 +244,40 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _buildRevenueChart() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // 从API数据中提取收款金额（类型为"收款金额"）
+    final revenueItems = _revenueData
+        .where((item) => item['type'] == '收款金额')
+        .toList();
+
+    // 获取最近7天的数据
+    final last7Days = revenueItems.take(7).toList().reversed.toList();
+
+    // 生成图表数据点
+    final spots = <FlSpot>[];
+    final dateLabels = <String>[];
+    double maxY = 0;
+
+    for (int i = 0; i < last7Days.length; i++) {
+      final value = (last7Days[i]['value'] as num?)?.toDouble() ?? 0;
+      spots.add(FlSpot(i.toDouble(), value));
+      dateLabels.add(last7Days[i]['date']?.toString() ?? '');
+      if (value > maxY) maxY = value;
+    }
+
+    // 如果没有数据，显示占位
+    if (spots.isEmpty) {
+      spots.addAll([
+        const FlSpot(0, 0),
+        const FlSpot(1, 0),
+        const FlSpot(2, 0),
+        const FlSpot(3, 0),
+        const FlSpot(4, 0),
+        const FlSpot(5, 0),
+        const FlSpot(6, 0),
+      ]);
+      dateLabels.addAll(['', '', '', '', '', '', '']);
+    }
+
     return GlassCard(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -261,9 +305,9 @@ class _DashboardPageState extends State<DashboardPage> {
                   color: AppColors.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
-                  '近7天',
-                  style: TextStyle(
+                child: Text(
+                  '近${last7Days.length}天',
+                  style: const TextStyle(
                     color: AppColors.primary,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -280,7 +324,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  horizontalInterval: 1,
+                  horizontalInterval: maxY > 0 ? maxY / 4 : 1,
                   getDrawingHorizontalLine: (value) => FlLine(
                     color: isDark
                         ? AppColors.borderDark
@@ -289,8 +333,22 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 ),
                 titlesData: FlTitlesData(
-                  leftTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 50,
+                      getTitlesWidget: (value, meta) {
+                        return Text(
+                          '¥${value.toInt()}',
+                          style: TextStyle(
+                            color: isDark
+                                ? AppColors.textMutedDark
+                                : AppColors.textMutedLight,
+                            fontSize: 10,
+                          ),
+                        );
+                      },
+                    ),
                   ),
                   rightTitles: const AxisTitles(
                     sideTitles: SideTitles(showTitles: false),
@@ -302,38 +360,50 @@ class _DashboardPageState extends State<DashboardPage> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        const days = ['一', '二', '三', '四', '五', '六', '日'];
-                        return Text(
-                          days[value.toInt() % 7],
-                          style: TextStyle(
-                            color: isDark
-                                ? AppColors.textMutedDark
-                                : AppColors.textMutedLight,
-                            fontSize: 12,
-                          ),
-                        );
+                        final index = value.toInt();
+                        if (index >= 0 && index < dateLabels.length) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              dateLabels[index],
+                              style: TextStyle(
+                                color: isDark
+                                    ? AppColors.textMutedDark
+                                    : AppColors.textMutedLight,
+                                fontSize: 10,
+                              ),
+                            ),
+                          );
+                        }
+                        return const Text('');
                       },
                       reservedSize: 30,
                     ),
                   ),
                 ),
                 borderData: FlBorderData(show: false),
+                minY: 0,
+                maxY: maxY > 0 ? maxY * 1.1 : 10,
                 lineBarsData: [
                   LineChartBarData(
-                    spots: const [
-                      FlSpot(0, 3),
-                      FlSpot(1, 4),
-                      FlSpot(2, 3.5),
-                      FlSpot(3, 5),
-                      FlSpot(4, 4),
-                      FlSpot(5, 6),
-                      FlSpot(6, 5.5),
-                    ],
+                    spots: spots,
                     isCurved: true,
                     color: AppColors.primary,
                     barWidth: 3,
                     isStrokeCapRound: true,
-                    dotData: const FlDotData(show: false),
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, barData, index) {
+                        return FlDotCirclePainter(
+                          radius: 4,
+                          color: AppColors.primary,
+                          strokeWidth: 2,
+                          strokeColor: isDark
+                              ? AppColors.cardDark
+                              : Colors.white,
+                        );
+                      },
+                    ),
                     belowBarData: BarAreaData(
                       show: true,
                       gradient: LinearGradient(
@@ -347,6 +417,25 @@ class _DashboardPageState extends State<DashboardPage> {
                     ),
                   ),
                 ],
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipItems: (touchedSpots) {
+                      return touchedSpots.map((spot) {
+                        final index = spot.x.toInt();
+                        final date = index < dateLabels.length
+                            ? dateLabels[index]
+                            : '';
+                        return LineTooltipItem(
+                          '$date\n¥${spot.y.toStringAsFixed(2)}',
+                          TextStyle(
+                            color: isDark ? Colors.white : Colors.black,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        );
+                      }).toList();
+                    },
+                  ),
+                ),
               ),
             ),
           ),
