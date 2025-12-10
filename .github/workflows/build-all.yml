@@ -68,7 +68,7 @@ jobs:
           cd build/macos/Build/Products/Release
           mkdir -p dmg_temp
           cp -R "v2board_admin.app" dmg_temp/
-          hdiutil create -format UDZO -srcfolder dmg_temp -volname "V2Board Admin" ../../../../../../v2board-admin-macos.dmg
+          hdiutil create -format UDZO -srcfolder dmg_temp -volname "V2Board Admin" ../../../../../v2board-admin-macos.dmg
       
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
